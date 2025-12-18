@@ -19,8 +19,8 @@ const uploadNewBtn = document.getElementById('uploadNewBtn');
 let selectedFile = null;
 
 // Configuration
-// Backend endpoint (Express server) that will talk to Groq API securely
-const BACKEND_API_ENDPOINT = '/api/analyze';
+// Backend endpoint hosted on Fly.io that will talk to Groq API securely
+const BACKEND_API_ENDPOINT = 'https://ai-powered-ats-cv-analyzer.fly.dev/api/analyze';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const VALID_TYPES = [
     'application/pdf',
