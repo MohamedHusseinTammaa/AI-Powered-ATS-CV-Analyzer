@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fetch = require('node-fetch');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,15 @@ if (!GROQ_API_KEY) {
       'The /api/analyze endpoint will return an error until it is configured.'
   );
 }
+
+// CORS: allow frontend to call this API from other origins
+app.use(
+  cors({
+    origin: '*', // you can replace '*' with your specific frontend origin for more security
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+  })
+);
 
 // Parse JSON bodies
 app.use(express.json({ limit: '11mb' }));
