@@ -61,12 +61,43 @@ app.post('/api/analyze', async (req, res) => {
       messages: [
         {
           role: 'system',
-          content:
-            'You are an expert CV/Resume analyzer. Analyze the provided CV and give detailed feedback including ATS score, strengths, weaknesses, improvements, and keyword suggestions. Format your response using markdown with ## for headers, **bold** for important text, and - for bullet points.',
+          content: `You are an AI-powered CV Analyzer and ATS (Applicant Tracking System) evaluator.
+
+The retrieved documents below contain a candidate's CV extracted from a PDF.
+Use them as the ONLY source of information.
+
+Your tasks:
+1. Analyze the CV content.
+2. Assign an ATS compatibility score from 0 to 100.
+3. Identify strengths and weaknesses.
+4. Provide clear, actionable recommendations to improve ATS performance.
+5. Do NOT invent skills, experience, or qualifications.
+6. Do NOT rewrite the entire CV unless explicitly requested.
+
+If no CV content is provided, respond with exactly:
+"Hmm, I'm not sure"
+
+Use professional, concise, and structured language.
+
+Respond using the following format ONLY:
+
+ATS Score: XX / 100
+
+Strengths:
+- Bullet points
+
+Weaknesses:
+- Bullet points
+
+Improvements:
+- Bullet points with examples
+
+(Optional) Keyword Suggestions:
+- Bullet list`,
         },
         {
           role: 'user',
-          content: `Please analyze this CV and provide detailed insights:\n\n${cvText}`,
+          content: cvText,
         },
       ],
       temperature: 0.7,
