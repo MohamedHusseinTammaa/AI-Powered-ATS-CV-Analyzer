@@ -241,9 +241,48 @@ async function analyzeCV() {
         console.log('Response status:', response.status);
         
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Error response:', errorText);
-            throw new Error(`Analysis failed (${response.status}): ${errorText}`);
+            let errorMessage = 'An error occurred during analysis. Please try again.';
+            
+            try {
+                const errorData = await response.json();
+                // Backend returns user-friendly error messages
+                if (errorData.error) {
+                    errorMessage = errorData.error;
+                } else if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+            } catch (parseError) {
+                // If response is not JSON, try to get text
+                try {
+                    const errorText = await response.text();
+                    console.error('Error response (text):', errorText);
+                    
+                    // Try to parse if it's JSON string
+                    try {
+                        const parsed = JSON.parse(errorText);
+                        errorMessage = parsed.error || parsed.message || errorMessage;
+                    } catch {
+                        // If not JSON, use a generic message based on status
+                        if (response.status === 429) {
+                            errorMessage = "We've reached today's free CV check limit. Please come back tomorrow to continue using the service.";
+                        } else if (response.status >= 500) {
+                            errorMessage = 'The service is temporarily unavailable. Please try again in a few minutes.';
+                        } else if (response.status === 400) {
+                            errorMessage = 'Invalid request. Please check your CV file and try again.';
+                        }
+                    }
+                } catch (textError) {
+                    console.error('Could not read error response:', textError);
+                    // Use default error message based on status code
+                    if (response.status === 429) {
+                        errorMessage = "We've reached today's free CV check limit. Please come back tomorrow to continue using the service.";
+                    } else if (response.status >= 500) {
+                        errorMessage = 'The service is temporarily unavailable. Please try again in a few minutes.';
+                    }
+                }
+            }
+            
+            throw new Error(errorMessage);
         }
         
         const result = await response.json();
@@ -254,7 +293,14 @@ async function analyzeCV() {
         
     } catch (error) {
         console.error('Error:', error);
-        showError(error.message || 'An error occurred during analysis');
+        
+        // Handle network errors (fetch failed completely)
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            showError('Unable to connect to the server. Please check your internet connection and try again.');
+        } else {
+            // Display user-friendly error message
+            showError(error.message || 'An unexpected error occurred. Please try again later.');
+        }
     } finally {
         setLoading(false);
     }

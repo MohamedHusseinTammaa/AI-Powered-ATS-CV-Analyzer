@@ -116,10 +116,42 @@ Improvements:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Groq API error:', response.status, errorText);
-      return res.status(502).json({
-        error: 'Analysis failed',
-        status: response.status,
-        details: errorText,
+      
+      let errorMessage = 'Analysis failed. Please try again later.';
+      let statusCode = 502;
+      
+      // Handle rate limit errors (429)
+      if (response.status === 429) {
+        try {
+          const errorData = JSON.parse(errorText);
+          const groqError = errorData?.error || {};
+          
+          if (groqError.type === 'tokens' && groqError.message) {
+            // Extract time from message if available
+            const timeMatch = groqError.message.match(/try again in ([\dhm\s.]+)/i);
+            const retryTime = timeMatch ? timeMatch[1].trim() : 'a few minutes';
+            
+            errorMessage = `We've reached today's free CV check limit after processing 2,000+ requests. Please come back ${retryTime} to continue using the service.`;
+            statusCode = 429;
+          } else {
+            errorMessage = 'Service is temporarily unavailable due to high demand. Please try again later.';
+            statusCode = 429;
+          }
+        } catch (parseError) {
+          errorMessage = 'Service is temporarily unavailable due to high demand. Please try again later.';
+          statusCode = 429;
+        }
+      } else if (response.status === 401 || response.status === 403) {
+        errorMessage = 'Authentication error. Please contact support.';
+        statusCode = 500;
+      } else if (response.status >= 500) {
+        errorMessage = 'The analysis service is temporarily unavailable. Please try again in a few minutes.';
+        statusCode = 503;
+      }
+      
+      return res.status(statusCode).json({
+        error: errorMessage,
+        code: response.status === 429 ? 'RATE_LIMIT' : 'API_ERROR',
       });
     }
 
