@@ -218,10 +218,6 @@ async function analyzeCV() {
             model: "llama-3.3-70b-versatile", // or "mixtral-8x7b-32768"
             messages: [
                 {
-                    role: "system",
-                    content: "You are an expert CV/Resume analyzer. Analyze the provided CV and give detailed feedback including ATS score, strengths, weaknesses, improvements, and keyword suggestions. Format your response using markdown with ## for headers, **bold** for important text, and - for bullet points."
-                },
-                {
                     role: "user",
                     content: `Please analyze this CV and provide detailed insights:\n\n${cvText}`
                 }

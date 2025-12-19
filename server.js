@@ -75,7 +75,7 @@ Your tasks:
 6. Do NOT rewrite the entire CV unless explicitly requested.
 
 If no CV content is provided, respond with exactly:
-"Hmm, I'm not sure"
+"No CV content provided"
 
 Use professional, concise, and structured language.
 
