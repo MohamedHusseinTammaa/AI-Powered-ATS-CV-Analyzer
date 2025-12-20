@@ -1,4 +1,8 @@
 // DOM Elements
+const positionSection = document.getElementById('positionSection');
+const positionButtons = document.querySelectorAll('.position-btn');
+const selectedPositionDiv = document.getElementById('selectedPosition');
+const selectedPositionText = document.getElementById('selectedPositionText');
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const dropText = document.getElementById('dropText');
@@ -17,9 +21,13 @@ const uploadNewBtn = document.getElementById('uploadNewBtn');
 
 // State
 let selectedFile = null;
+let selectedPosition = null;
 
-// Backend endpoint hosted separately (Fly.io)
-const BACKEND_API_ENDPOINT = 'https://ai-powered-ats-cv-analyzer.fly.dev/api/analyze';
+// Backend endpoint - change this based on your environment
+// For production (Fly.io):
+//const BACKEND_API_ENDPOINT = 'https://ai-powered-ats-cv-analyzer.fly.dev/api/analyze';
+// For local development, uncomment the line below and comment the one above:
+ const BACKEND_API_ENDPOINT = 'http://localhost:3000/api/analyze';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const VALID_TYPES = [
     'application/pdf',
@@ -28,6 +36,11 @@ const VALID_TYPES = [
 ];
 
 // Event Listeners
+// Position selection
+positionButtons.forEach(btn => {
+    btn.addEventListener('click', () => handlePositionSelect(btn));
+});
+
 dropZone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', handleFileSelect);
 removeBtn.addEventListener('click', resetUpload);
@@ -111,14 +124,41 @@ function hideError() {
     errorText.textContent = '';
 }
 
+function handlePositionSelect(button) {
+    // Remove selected class from all buttons
+    positionButtons.forEach(btn => btn.classList.remove('selected'));
+    
+    // Add selected class to clicked button
+    button.classList.add('selected');
+    
+    // Store selected position
+    selectedPosition = button.getAttribute('data-position');
+    selectedPositionText.textContent = selectedPosition;
+    selectedPositionDiv.classList.remove('hidden');
+    
+    // Show upload section after a short delay for smooth transition
+    setTimeout(() => {
+        positionSection.classList.add('hidden');
+        uploadSection.classList.remove('hidden');
+    }, 300);
+}
+
 function resetUpload() {
     selectedFile = null;
+    selectedPosition = null;
     fileInput.value = '';
     filePreview.classList.add('hidden');
     dropText.textContent = 'Drop your CV here or click to browse';
     analyzeBtn.disabled = true;
     hideError();
-    uploadSection.classList.remove('hidden');
+    
+    // Reset position selection
+    positionButtons.forEach(btn => btn.classList.remove('selected'));
+    selectedPositionDiv.classList.add('hidden');
+    
+    // Show position section, hide upload and results
+    positionSection.classList.remove('hidden');
+    uploadSection.classList.add('hidden');
     resultsSection.classList.add('hidden');
 }
 
@@ -194,6 +234,12 @@ function readFileAsText(file) {
 async function analyzeCV() {
     if (!selectedFile) return;
     
+    // Validate position is selected
+    if (!selectedPosition) {
+        showError('Please select your experience level first');
+        return;
+    }
+    
     setLoading(true);
     hideError();
     
@@ -213,20 +259,7 @@ async function analyzeCV() {
             return;
         }
         
-        // Prepare the request payload for Groq API
-        const payload = {
-            model: "llama-3.3-70b-versatile", // or "mixtral-8x7b-32768"
-            messages: [
-                {
-                    role: "user",
-                    content: `Please analyze this CV and provide detailed insights:\n\n${cvText}`
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 2048
-        };
-        
-        // Send request to Groq API
+        // Send request to backend API with CV text and position
         btnText.textContent = 'Analyzing CV...';
         console.log('Sending request to backend API...');
         
@@ -235,7 +268,7 @@ async function analyzeCV() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ cvText })
+            body: JSON.stringify({ cvText, position: selectedPosition })
         });
         
         console.log('Response status:', response.status);
@@ -338,50 +371,174 @@ function showResults(data) {
 function formatAnalysisText(text) {
     if (!text) return '<p>No analysis results available.</p>';
     
-    let html = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    // Headers (## Header)
-    html = html.replace(/^##\s+(.*?)$/gm, '<h3>$1</h3>');
+    // Split into lines for processing
+    const lines = text.split('\n');
+    let result = [];
+    let currentPriority = null;
+    let currentPriorityItems = [];
+    let currentBeforeAfter = null;
     
-    // Headers (### Subheader)
-    html = html.replace(/^###\s+(.*?)$/gm, '<h4>$1</h4>');
-
-    // Bold **text**
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Italic *text*
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-    // Numbered lists
-    html = html.replace(/^\d+\.\s+(.*?)$/gm, '<li>$1</li>');
-    
-    // Bullet points (- or *)
-    html = html.replace(/^[-*]\s+(.*?)$/gm, '<li>$1</li>');
-
-    // Wrap consecutive list items in <ul> or <ol>
-    html = html.replace(/(<li>.*?<\/li>\n?)+/g, (match) => {
-        const isNumbered = match.match(/^\d+\./);
-        const tag = isNumbered ? 'ol' : 'ul';
-        return `<${tag}>${match}</${tag}>`;
-    });
-
-    // Paragraphs
-    html = html
-        .split('\n\n')
-        .map(p => {
-            p = p.trim();
-            if (!p) return '';
-            if (p.startsWith('<h3>') || p.startsWith('<h4>') || p.startsWith('<ul>') || p.startsWith('<ol>')) {
-                return p;
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) {
+            // Flush any pending items
+            if (currentPriorityItems.length > 0) {
+                const priorityClass = currentPriority === '🔴' ? 'priority-critical' : 
+                                    currentPriority === '🟠' ? 'priority-important' : 'priority-optional';
+                result.push(`<div class="priority-item ${priorityClass}">`);
+                result.push(`<span class="priority-icon">${currentPriority}</span>`);
+                result.push('<div class="priority-content">');
+                result.push(...currentPriorityItems);
+                result.push('</div></div>');
+                currentPriorityItems = [];
+                currentPriority = null;
             }
-            return `<p>${p.replace(/\n/g, '<br>')}</p>`;
-        })
-        .filter(p => p)
-        .join('');
-
+            if (currentBeforeAfter) {
+                result.push('</div></div></div>');
+                currentBeforeAfter = null;
+            }
+            continue;
+        }
+        
+        // Escape HTML
+        line = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Numbered section headers (1. Executive Summary)
+        if (/^\d+\.\s+[A-Z]/.test(line)) {
+            const match = line.match(/^(\d+)\.\s+(.+)$/);
+            if (match) {
+                result.push(`<h2 class="section-header">${match[1]}. ${match[2]}</h2>`);
+                continue;
+            }
+        }
+        
+        // Priority: 🔴/🟠/🟢
+        if (/^Priority:\s*(🔴|🟠|🟢)/.test(line)) {
+            const match = line.match(/Priority:\s*(🔴|🟠|🟢)/);
+            if (match) {
+                currentPriority = match[1];
+                continue;
+            }
+        }
+        
+        // Problem/Impact/Solution after Priority
+        if (currentPriority) {
+            if (/^-\s*Problem:\s*(.+)$/.test(line)) {
+                const match = line.match(/^-\s*Problem:\s*(.+)$/);
+                currentPriorityItems.push(`<div class="issue-problem"><strong>Problem:</strong> ${match[1]}</div>`);
+                continue;
+            }
+            if (/^-\s*Impact:\s*(.+)$/.test(line)) {
+                const match = line.match(/^-\s*Impact:\s*(.+)$/);
+                currentPriorityItems.push(`<div class="issue-impact"><strong>Impact:</strong> ${match[1]}</div>`);
+                continue;
+            }
+            if (/^-\s*Solution:\s*(.+)$/.test(line)) {
+                const match = line.match(/^-\s*Solution:\s*(.+)$/);
+                currentPriorityItems.push(`<div class="issue-solution"><strong>Solution:</strong> ${match[1]}</div>`);
+                continue;
+            }
+        }
+        
+        // Before/After sections
+        if (/^❌\s*Before:\s*(.+)$/.test(line)) {
+            const match = line.match(/^❌\s*Before:\s*(.+)$/);
+            result.push('<div class="before-after-section">');
+            result.push('<div class="before-section">');
+            result.push('<span class="before-after-label before-label">❌ Before:</span>');
+            result.push(`<div class="before-after-content">${match[1]}</div>`);
+            result.push('</div>');
+            currentBeforeAfter = 'before';
+            continue;
+        }
+        if (/^✅\s*After:\s*(.+)$/.test(line)) {
+            const match = line.match(/^✅\s*After:\s*(.+)$/);
+            if (currentBeforeAfter) {
+                result.push('<div class="after-section">');
+                result.push('<span class="before-after-label after-label">✅ After:</span>');
+                result.push(`<div class="before-after-content">${match[1]}</div>`);
+                result.push('</div>');
+                currentBeforeAfter = 'after';
+            }
+            continue;
+        }
+        if (/^Why this is better:\s*(.+)$/.test(line) && currentBeforeAfter === 'after') {
+            const match = line.match(/^Why this is better:\s*(.+)$/);
+            result.push(`<div class="improvement-note"><strong>Why this is better:</strong> ${match[1]}</div>`);
+            result.push('</div>');
+            currentBeforeAfter = null;
+            continue;
+        }
+        
+        // ✅ What Works / ❌ What Doesn't / 🔧 How to Fix
+        if (/^-\s*✅\s*What Works:\s*(.+)$/.test(line)) {
+            const match = line.match(/^-\s*✅\s*What Works:\s*(.+)$/);
+            result.push(`<div class="positive-item">✅ <strong>What Works:</strong> ${match[1]}</div>`);
+            continue;
+        }
+        if (/^-\s*❌\s*What Doesn'?t:\s*(.+)$/.test(line)) {
+            const match = line.match(/^-\s*❌\s*What Doesn'?t:\s*(.+)$/);
+            result.push(`<div class="negative-item">❌ <strong>What Doesn't:</strong> ${match[1]}</div>`);
+            continue;
+        }
+        if (/^-\s*🔧\s*How to Fix:\s*(.+)$/.test(line)) {
+            const match = line.match(/^-\s*🔧\s*How to Fix:\s*(.+)$/);
+            result.push(`<div class="improvement-note">🔧 <strong>How to Fix:</strong> ${match[1]}</div>`);
+            continue;
+        }
+        
+        // Markdown headers
+        if (/^##\s+(.+)$/.test(line)) {
+            const match = line.match(/^##\s+(.+)$/);
+            result.push(`<h2 class="section-header">${match[1]}</h2>`);
+            continue;
+        }
+        if (/^###\s+(.+)$/.test(line)) {
+            const match = line.match(/^###\s+(.+)$/);
+            result.push(`<h3 class="subsection-header">${match[1]}</h3>`);
+            continue;
+        }
+        
+        // Bold
+        line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        
+        // Code
+        line = line.replace(/`(.+?)`/g, '<code>$1</code>');
+        
+        // Bullet points
+        if (/^-\s+(.+)$/.test(line) && !line.includes('Problem:') && !line.includes('Impact:') && 
+            !line.includes('Solution:') && !line.includes('What Works:') && !line.includes('What Doesn') &&
+            !line.includes('How to Fix:') && !line.includes('Before:') && !line.includes('After:')) {
+            const match = line.match(/^-\s+(.+)$/);
+            result.push(`<li>${match[1]}</li>`);
+            continue;
+        }
+        
+        // Regular text - add as paragraph
+        if (line && !line.startsWith('<')) {
+            result.push(`<p class="analysis-paragraph">${line}</p>`);
+        } else {
+            result.push(line);
+        }
+    }
+    
+    // Flush any remaining priority items
+    if (currentPriorityItems.length > 0) {
+        const priorityClass = currentPriority === '🔴' ? 'priority-critical' : 
+                            currentPriority === '🟠' ? 'priority-important' : 'priority-optional';
+        result.push(`<div class="priority-item ${priorityClass}">`);
+        result.push(`<span class="priority-icon">${currentPriority}</span>`);
+        result.push('<div class="priority-content">');
+        result.push(...currentPriorityItems);
+        result.push('</div></div>');
+    }
+    
+    // Wrap consecutive list items
+    let html = result.join('\n');
+    html = html.replace(/(<li>.*?<\/li>\n?)+/g, (match) => {
+        return `<ul class="analysis-list">${match}</ul>`;
+    });
+    
     return html || '<p>Analysis completed successfully.</p>';
 }
 

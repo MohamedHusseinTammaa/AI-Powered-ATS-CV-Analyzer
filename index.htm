@@ -16,8 +16,56 @@
         </header>
 
         <main class="card">
+            <!-- Position Selection Section -->
+            <section id="positionSection" aria-label="Position level selection">
+                <h2 style="margin-bottom: 1.5rem; text-align: center; font-size: 1.5rem;">Select Your Experience Level</h2>
+                <p style="text-align: center; color: #64748b; margin-bottom: 2rem;">
+                    This helps us provide fair and accurate feedback tailored to your level
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                    <button class="position-btn" data-position="Student/Intern" aria-label="Select Student or Intern level">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 32px; height: 32px; margin-bottom: 0.5rem;">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5"></path>
+                            <path d="M2 12l10 5 10-5"></path>
+                        </svg>
+                        <span style="font-weight: 600;">Student/Intern</span>
+                    </button>
+                    <button class="position-btn" data-position="Junior" aria-label="Select Junior level">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 32px; height: 32px; margin-bottom: 0.5rem;">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span style="font-weight: 600;">Junior</span>
+                    </button>
+                    <button class="position-btn" data-position="Mid-level" aria-label="Select Mid-level">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 32px; height: 32px; margin-bottom: 0.5rem;">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span style="font-weight: 600;">Mid-level</span>
+                    </button>
+                    <button class="position-btn" data-position="Senior" aria-label="Select Senior level">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 32px; height: 32px; margin-bottom: 0.5rem;">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <path d="M20 8v6"></path>
+                            <path d="M23 11h-6"></path>
+                        </svg>
+                        <span style="font-weight: 600;">Senior</span>
+                    </button>
+                </div>
+                <div id="selectedPosition" class="hidden" style="text-align: center; padding: 1rem; background: #f1f5f9; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <p style="margin: 0; color: #2563eb; font-weight: 500;">
+                        Selected: <span id="selectedPositionText"></span>
+                    </p>
+                </div>
+            </section>
+
             <!-- Upload Section -->
-            <section id="uploadSection" aria-label="File upload section">
+            <section id="uploadSection" class="hidden" aria-label="File upload section">
                 <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Drop zone for CV file upload">
                     <input type="file" id="fileInput" accept=".pdf,.txt,.doc,.docx" aria-label="Select CV file" hidden>
                     <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
