@@ -30,9 +30,7 @@ let lastCvText = null;
 
 // Backend endpoint - change this based on your environment
 // For production (Fly.io):
-//const BACKEND_API_ENDPOINT = 'https://ai-powered-ats-cv-analyzer.fly.dev/api/analyze';
-// For local development, uncomment the line below and comment the one above:
-const BACKEND_API_ENDPOINT = 'http://localhost:3000/api/analyze';
+const BACKEND_API_ENDPOINT = 'https://ai-powered-ats-cv-analyzer.fly.dev/api/analyze';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const VALID_TYPES = [
     'application/pdf',
