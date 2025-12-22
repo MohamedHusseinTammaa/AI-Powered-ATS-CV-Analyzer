@@ -261,6 +261,135 @@ Remember: Your goal is to help this candidate get interviews at the ${userPositi
   }
 });
 
+// Compare CV against job requirements
+app.post('/api/compare', async (req, res) => {
+  try {
+    if (!GROQ_API_KEY) {
+      return res
+        .status(500)
+        .json({ error: 'Server is not configured with GROQ_API_KEY' });
+    }
+
+    const { cvText, jobRequirements, position } = req.body || {};
+
+    if (!cvText || typeof cvText !== 'string') {
+      return res
+        .status(400)
+        .json({ error: 'Missing or invalid cvText in request body' });
+    }
+    if (!jobRequirements || typeof jobRequirements !== 'string') {
+      return res
+        .status(400)
+        .json({ error: 'Missing or invalid jobRequirements in request body' });
+    }
+
+    const userPosition = position || 'Not specified';
+
+    const payload = {
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert technical recruiter and CV analyst. Compare the candidate's CV to the provided job requirements and deliver specific, actionable guidance.
+
+Rules:
+- Use only the provided CV content and job requirements; do NOT invent experience or skills.
+- Be specific and actionable. Every issue should include a concrete fix.
+- Respect the user's stated level: ${userPosition}. If the CV doesn't meet it, explain why.
+- No numeric scores.
+
+Output structure (concise, markdown):
+
+## Match Summary
+- One-paragraph verdict on fit for this role and level (${userPosition})
+- Key strengths vs the job
+- Key gaps vs the job
+
+## Top Fixes (3-5)
+For each, provide:
+- 🔴/🟠/🟢 Priority
+- Problem
+- Why it matters for this job
+- How to fix (with concrete example or rewrite)
+
+## Section Adjustments
+For sections present in the CV (Summary, Experience, Projects, Skills, Education):
+- What to add/remove/tailor for this job
+- Example phrasing when relevant
+
+## Skills & Keywords
+- Missing must-have skills/keywords from the job (only if absent in CV)
+- Buzzwords to trim
+- Suggested ordering/grouping for this role
+
+## Final Verdict
+- Can they apply? (Yes/Maybe/Not yet) with one-sentence rationale
+- Next 3 actions to tailor the CV for this job
+`
+        },
+        {
+          role: 'user',
+          content: `Job requirements:\n${jobRequirements}\n\nCandidate CV:\n${cvText}`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1800
+    };
+
+    const response = await fetch(GROQ_API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Groq API error:', response.status, errorText);
+
+      let errorMessage = 'Analysis failed. Please try again later.';
+      let statusCode = 502;
+
+      if (response.status === 429) {
+        try {
+          const errorData = JSON.parse(errorText);
+          const groqError = errorData?.error || {};
+          const timeMatch = groqError.message?.match(/try again in ([\dhm\s.]+)/i);
+          const retryTime = timeMatch ? retryTime[1]?.trim?.() || 'a few minutes' : 'a few minutes';
+          errorMessage = `We've reached today's free CV check limit after processing many requests. Please come back ${retryTime}.`;
+          statusCode = 429;
+        } catch {
+          errorMessage = 'Service is temporarily unavailable due to high demand. Please try again later.';
+          statusCode = 429;
+        }
+      } else if (response.status === 401 || response.status === 403) {
+        errorMessage = 'Authentication error. Please contact support.';
+        statusCode = 500;
+      } else if (response.status >= 500) {
+        errorMessage = 'The analysis service is temporarily unavailable. Please try again in a few minutes.';
+        statusCode = 503;
+      }
+
+      return res.status(statusCode).json({
+        error: errorMessage,
+        code: response.status === 429 ? 'RATE_LIMIT' : 'API_ERROR',
+      });
+    }
+
+    const result = await response.json();
+    const analysis = result?.choices?.[0]?.message?.content || '';
+
+    res.json({ text: analysis });
+  } catch (err) {
+    console.error('Unexpected error in /api/compare:', err);
+    res
+      .status(500)
+      .json({ error: 'Internal server error while comparing CV to job requirements' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

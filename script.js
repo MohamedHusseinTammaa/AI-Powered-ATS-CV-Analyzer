@@ -18,13 +18,21 @@ const uploadSection = document.getElementById('uploadSection');
 const resultsSection = document.getElementById('resultsSection');
 const resultsContent = document.getElementById('resultsContent');
 const uploadNewBtn = document.getElementById('uploadNewBtn');
+const jobRequirementsInput = document.getElementById('jobRequirements');
+const compareBtn = document.getElementById('compareBtn');
+const compareStatus = document.getElementById('compareStatus');
+const compareResults = document.getElementById('compareResults');
 
 // State
 let selectedFile = null;
 let selectedPosition = null;
+let lastCvText = null;
 
-
-const BACKEND_API_ENDPOINT = 'https://ai-powered-ats-cv-analyzer.fly.dev/api/analyze';
+// Backend endpoint - change this based on your environment
+// For production (Fly.io):
+//const BACKEND_API_ENDPOINT = 'https://ai-powered-ats-cv-analyzer.fly.dev/api/analyze';
+// For local development, uncomment the line below and comment the one above:
+const BACKEND_API_ENDPOINT = 'http://localhost:3000/api/analyze';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const VALID_TYPES = [
     'application/pdf',
@@ -43,6 +51,7 @@ fileInput.addEventListener('change', handleFileSelect);
 removeBtn.addEventListener('click', resetUpload);
 analyzeBtn.addEventListener('click', analyzeCV);
 uploadNewBtn.addEventListener('click', resetUpload);
+compareBtn.addEventListener('click', compareWithJob);
 
 // Drag and Drop Events
 dropZone.addEventListener('dragenter', handleDragEnter);
@@ -75,6 +84,57 @@ function handleDrop(e) {
     const files = e.dataTransfer.files;
     if (files.length > 0) {
         handleFile(files[0]);
+    }
+}
+
+async function compareWithJob() {
+    const jobReq = (jobRequirementsInput.value || '').trim();
+    if (!jobReq) {
+        showError('Please paste a job description to compare.');
+        return;
+    }
+    if (!lastCvText) {
+        showError('Please analyze a CV first before comparing.');
+        return;
+    }
+
+    compareBtn.disabled = true;
+    compareStatus.textContent = 'Comparing...';
+    compareResults.innerHTML = '';
+    hideError();
+
+    try {
+        const response = await fetch(`${BACKEND_API_ENDPOINT.replace('/api/analyze', '')}/api/compare`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                cvText: lastCvText,
+                jobRequirements: jobReq,
+                position: selectedPosition || 'Not specified'
+            })
+        });
+
+        if (!response.ok) {
+            let errorMessage = 'Comparison failed. Please try again.';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (err) {
+                // fallback
+            }
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        const formatted = formatAnalysisText(result.text || result.answer || JSON.stringify(result));
+        compareResults.innerHTML = formatted;
+    } catch (err) {
+        showError(err.message || 'Comparison failed. Please try again later.');
+    } finally {
+        compareBtn.disabled = false;
+        compareStatus.textContent = '';
     }
 }
 
@@ -143,6 +203,7 @@ function handlePositionSelect(button) {
 function resetUpload() {
     selectedFile = null;
     selectedPosition = null;
+    lastCvText = null;
     fileInput.value = '';
     filePreview.classList.add('hidden');
     dropText.textContent = 'Drop your CV here or click to browse';
@@ -255,6 +316,9 @@ async function analyzeCV() {
             setLoading(false);
             return;
         }
+
+        // Keep a copy for later job comparison
+        lastCvText = cvText;
         
         // Send request to backend API with CV text and position
         btnText.textContent = 'Analyzing CV...';

@@ -129,6 +129,20 @@
                         <div class="results-content" id="resultsContent" role="region" aria-label="CV analysis results"></div>
                     </div>
                 </div>
+
+                <!-- Job requirement comparison -->
+                <div class="card" style="margin-top: 1.5rem; background: #f8fafc; border: 1px solid #e5e7eb;">
+                    <h3 style="margin-bottom: 0.75rem;">Compare Against a Job Requirement</h3>
+                    <p style="color: #475569; margin-bottom: 0.75rem;">
+                        Paste a job description to see how well this CV aligns and what to change.
+                    </p>
+                    <textarea id="jobRequirements" class="job-textarea" rows="6" placeholder="Paste the job description here..."></textarea>
+                    <div style="display: flex; gap: 0.75rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap;">
+                        <button class="btn-primary" id="compareBtn">Compare &amp; Suggest Fixes</button>
+                        <span id="compareStatus" class="compare-status" aria-live="polite"></span>
+                    </div>
+                    <div class="results-content" id="compareResults" style="margin-top: 1rem;" aria-label="Job comparison results"></div>
+                </div>
             </section>
         </main>
 
